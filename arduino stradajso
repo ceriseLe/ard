@@ -1,0 +1,88 @@
+#include <FastLED.h>
+
+#define LED_PIN     6
+#define NUM_LEDS    64
+#define MATRIX_WIDTH  8
+#define MATRIX_HEIGHT 8
+#define BRIGHTNESS  50
+#define LED_TYPE    WS2812B
+#define COLOR_ORDER GRB
+CRGB leds[NUM_LEDS];
+
+byte alphabet[26][7] = {
+  {0b0011100, 0b0100010, 0b0100010, 0b0111110, 0b0100010, 0b0100010, 0b0100010}, // A
+  {0b0111100, 0b0100010, 0b0100010, 0b0111100, 0b0100010, 0b0100010, 0b0111100}, // B
+  {0b0011100, 0b0100010, 0b0100000, 0b0100000, 0b0100000, 0b0100010, 0b0011100}, // C
+  {0b0111100, 0b0100010, 0b0100010, 0b0100010, 0b0100010, 0b0100010, 0b0111100}, // D
+  {0b0111110, 0b0100000, 0b0100000, 0b0111100, 0b0100000, 0b0100000, 0b0111110}, // E
+  {0b0111110, 0b0100000, 0b0100000, 0b0111100, 0b0100000, 0b0100000, 0b0100000}, // F
+  {0b0011100, 0b0100010, 0b0100000, 0b0100110, 0b0100010, 0b0100010, 0b0011110}, // G
+  {0b0100010, 0b0100010, 0b0100010, 0b0111110, 0b0100010, 0b0100010, 0b0100010}, // H
+  {0b0011100, 0b0001000, 0b0001000, 0b0001000, 0b0001000, 0b0001000, 0b0011100}, // I
+  {0b0001110, 0b0000100, 0b0000100, 0b0000100, 0b0100100, 0b0100100, 0b0011000}, // J
+  {0b0100010, 0b0100100, 0b0101000, 0b0110000, 0b0101000, 0b0100100, 0b0100010}, // K
+  {0b0100000, 0b0100000, 0b0100000, 0b0100000, 0b0100000, 0b0100000, 0b0111110}, // L
+  {0b0100010, 0b0110110, 0b0101010, 0b0101010, 0b0100010, 0b0100010, 0b0100010}, // M
+  {0b0100010, 0b0110010, 0b0110010, 0b0101010, 0b0100110, 0b0100110, 0b0100010}, // N
+  {0b0011100, 0b0100010, 0b0100010, 0b0100010, 0b0100010, 0b0100010, 0b0011100}, // O
+  {0b0111100, 0b0100010, 0b0100010, 0b0111100, 0b0100000, 0b0100000, 0b0100000}, // P
+  {0b0011100, 0b0100010, 0b0100010, 0b0100010, 0b0101010, 0b0100100, 0b0011010}, // Q
+  {0b0111100, 0b0100010, 0b0100010, 0b0111100, 0b0101000, 0b0100100, 0b0100010}, // R
+  {0b0011110, 0b0100000, 0b0100000, 0b0011100, 0b0000010, 0b0000010, 0b0111100}, // S
+  {0b0111110, 0b0001000, 0b0001000, 0b0001000, 0b0001000, 0b0001000, 0b0001000}, // T
+  {0b0100010, 0b0100010, 0b0100010, 0b0100010, 0b0100010, 0b0100010, 0b0011100}, // U
+  {0b0100010, 0b0100010, 0b0100010, 0b0100010, 0b0100010, 0b0010100, 0b0001000}, // V
+  {0b0100010, 0b0100010, 0b0100010, 0b0101010, 0b0101010, 0b0110110, 0b0100010}, // W
+  {0b0100010, 0b0100010, 0b0010100, 0b0001000, 0b0010100, 0b0100010, 0b0100010}, // X
+  {0b0100010, 0b0100010, 0b0100010, 0b0010100, 0b0001000, 0b0001000, 0b0001000}, // Y
+  {0b0111110, 0b0000010, 0b0000100, 0b0001000, 0b0010000, 0b0100000, 0b0111110}  // Z
+};
+
+
+void setup() {
+  FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
+  FastLED.setBrightness(BRIGHTNESS);
+  Serial.begin(9600); // Initialize serial communication
+  Serial.println("Ready to receive text...");
+}
+
+void loop() {
+  static String text = "";
+  while (Serial.available() > 0) {
+    char inChar = Serial.read();
+    if (inChar >= 'a' && inChar <= 'z') {
+      inChar = inChar - 'a' + 'A';  // Convert to uppercase
+    }
+    if (inChar == '\n') { // If newline, display the accumulated text
+      scrollText(text);
+      text = ""; // Reset text after displaying
+    } else if (inChar >= 'A' && inChar <= 'Z') {
+      text += inChar; // Add character to text
+    }
+  }
+}
+
+void scrollText(const String& text) {
+  for (int index = -MATRIX_WIDTH; index < (int)(text.length() * 7); index++) {
+    FastLED.clear();
+    for (int i = 0; i < text.length(); i++) {
+      int letterIndex = text[i] - 'A';
+      if (letterIndex >= 0 && letterIndex < 26) {
+        drawLetter(alphabet[letterIndex], 7 * i - index);
+      }
+    }
+    FastLED.show();
+    delay(100); // Adjust speed of scrolling
+  }
+}
+
+void drawLetter(const byte letter[7], int xOffset) {
+  for (int row = 0; row < 7; row++) {
+    for (int col = 0; col < 7; col++) {
+      int ledIndex = row * MATRIX_WIDTH + (col + xOffset);
+      if (ledIndex >= row * MATRIX_WIDTH && ledIndex < (row + 1) * MATRIX_WIDTH) {
+        leds[ledIndex] = (letter[row] & (1 << (6 - col))) ? CRGB::White : CRGB::Black;
+      }
+    }
+  }
+}
